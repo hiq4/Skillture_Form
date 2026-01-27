@@ -16,3 +16,18 @@ type FormField struct {
 	Type       int16          `db:"type" json:"type"`
 	CreatedAt  time.Time      `db:"created_at" json:"created_at"`
 }
+
+// TableName returns the DB table name
+func (FormField) TableName() string {
+	return "form_fields"
+}
+
+// HasOptions checks if the field has selectable options
+func (ff *FormField) HasOptions() bool {
+	return len(ff.Options) > 0
+}
+
+// IsRequired checks if the field is mandatory
+func (ff *FormField) IsRequired() bool {
+	return ff.Required
+}
