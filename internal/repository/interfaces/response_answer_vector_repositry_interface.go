@@ -1,21 +1,21 @@
 package interfaces
 
 import (
-	"context"
-
 	"Skillture_Form/internal/domain/entities"
+	"context"
 
 	"github.com/google/uuid"
 )
 
+type ResponseAnswerVectorFilter struct {
+	ResponseAnswerID *uuid.UUID
+	ModelName        *string
+}
+
 type ResponseAnswerVectorRepository interface {
-
-	// Create stores a vector for a response answer
 	Create(ctx context.Context, vector *entities.ResponseAnswerVector) error
-
-	// GetByResponseAnswerID retrieves all vectors for a specific answer
-	GetByResponseAnswerID(ctx context.Context, responseAnswerID uuid.UUID) ([]entities.ResponseAnswerVector, error)
-
-	// DeleteByResponseAnswerID removes all vectors for an answer
-	DeleteByResponseAnswerID(ctx context.Context, responseAnswerID uuid.UUID) error
+	CreateBulk(ctx context.Context, vectors []*entities.ResponseAnswerVector) error
+	GetByID(ctx context.Context, id uuid.UUID) (*entities.ResponseAnswerVector, error)
+	List(ctx context.Context, filter ResponseAnswerVectorFilter) ([]*entities.ResponseAnswerVector, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }

@@ -6,11 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// ResponseAnswer represents an answer to a single form field
 type ResponseAnswer struct {
 	ID         uuid.UUID      `db:"id" json:"id"`
 	ResponseID uuid.UUID      `db:"response_id" json:"response_id"`
 	FieldID    uuid.UUID      `db:"field_id" json:"field_id"`
-	Value      map[string]any `db:"value" json:"value"` // JSONB
+	Value      map[string]any `db:"value" json:"value"` // JSONB: {"en": "...", "ar": "..."}
 	CreatedAt  time.Time      `db:"created_at" json:"created_at"`
 }
 
@@ -19,15 +20,21 @@ func (ResponseAnswer) TableName() string {
 	return "response_answers"
 }
 
-// HasValue checks if the answer contains any value
-func (a *ResponseAnswer) HasValue() bool {
-	return len(a.Value) > 0
-}
-
-// GetValue returns the value for a given key in JSONB
-func (a *ResponseAnswer) GetValue(key string) any {
-	if val, ok := a.Value[key]; ok {
+// GetValue returns the answer for a specific language
+func (ra *ResponseAnswer) GetValue(lang string) string {
+	if ra.Value == nil {
+		return ""
+	}
+	if val, ok := ra.Value[lang].(string); ok {
 		return val
 	}
-	return nil
+	return ""
+}
+
+// SetValue sets the answer for a specific language
+func (ra *ResponseAnswer) SetValue(lang string, val string) {
+	if ra.Value == nil {
+		ra.Value = make(map[string]any)
+	}
+	ra.Value[lang] = val
 }

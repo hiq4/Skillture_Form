@@ -7,14 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// FormRepository
 // Filter object
-type FormFilter struct {
-	Status *int16
-	Title  *string
+type FormFieldFilter struct {
+	FormID *uuid.UUID
 }
 
-type FormRepository interface {
+type FormFieldRepository interface {
 	// Create saves
 	Create(ctx context.Context, form *entities.Forms) error
 	// GetByID retrieves an admin by their ID
@@ -24,5 +22,5 @@ type FormRepository interface {
 	// Delete removes an admin
 	Delete(ctx context.Context, id uuid.UUID) error
 	// List retrieves forms based on optional filter
-	List(ctx context.Context, filter FormFilter) ([]*entities.Forms, error)
+	List(ctx context.Context, filter FormFieldFilter) ([]*entities.FormField, error)
 }
