@@ -1,17 +1,27 @@
 package entities
 
 import (
+	"Skillture_Form/internal/domain/enums"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+// Domain errors
+var (
+	ErrMissingFormID     = errors.New("form ID is missing")
+	ErrMissingRespondent = errors.New("respondent info is missing")
+	ErrInvalidStatus     = errors.New("invalid response status")
+)
+
 // Response represents a single form submission by a user
 type Response struct {
-	ID          uuid.UUID      `db:"id" json:"id"`
-	FormID      uuid.UUID      `db:"form_id" json:"form_id"`
-	Respondent  map[string]any `db:"respondent" json:"respondent"` // JSONB: {"email": "...", "name": "...", "phone": "..."}
-	SubmittedAt time.Time      `db:"submitted_at" json:"submitted_at"`
+	ID          uuid.UUID            `db:"id" json:"id"`
+	FormID      uuid.UUID            `db:"form_id" json:"form_id"`
+	Respondent  map[string]any       `db:"respondent" json:"respondent"` // JSONB: {"email": "...", "name": "...", "phone": "..."}
+	Status      enums.ResponseStatus `db:"status" json:"status"`         // Enum: Pending, Submitted, Reviewed
+	SubmittedAt time.Time            `db:"submitted_at" json:"submitted_at"`
 }
 
 // TableName returns the DB table name
@@ -49,4 +59,18 @@ func (r *Response) SetName(name string) {
 		r.Respondent = make(map[string]any)
 	}
 	r.Respondent["name"] = name
+}
+
+// IsValid validates domain rules
+func (r *Response) IsValid() error {
+	if r.FormID == uuid.Nil {
+		return ErrMissingFormID
+	}
+	if len(r.Respondent) == 0 {
+		return ErrMissingRespondent
+	}
+	if !r.Status.IsValid() {
+		return ErrInvalidStatus
+	}
+	return nil
 }
