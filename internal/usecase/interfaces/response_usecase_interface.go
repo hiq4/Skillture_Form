@@ -2,7 +2,6 @@ package interfaces
 
 import (
 	"Skillture_Form/internal/domain/entities"
-	"Skillture_Form/internal/repository/interfaces"
 	"context"
 
 	"github.com/google/uuid"
@@ -10,7 +9,7 @@ import (
 
 // ResponseUseCase defines operations for form submissions
 type ResponseUseCase interface {
-	Create(ctx context.Context, tx interfaces.Transaction, response *entities.Response) error
+	Create(ctx context.Context, response *entities.Response) error
 
 	// Submit creates a new response with its answers
 	Submit(ctx context.Context, response *entities.Response) error

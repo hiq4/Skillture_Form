@@ -40,89 +40,85 @@ func NewResponseUsecase(formRepo repo.FormRepository, formFieldRepo repo.FormFie
 // - persists the response
 // - persists answers
 // - persists optional vectors (bulk insert)
-func (u *ResponseUsecase) Submit(ctx context.Context, response *entities.Response, answers []*entities.ResponseAnswer, vectors []*entities.ResponseAnswerVector) error {
+func (u *ResponseUsecase) Submit(
+	ctx context.Context,
+	response *entities.Response,
+	answers []*entities.ResponseAnswer,
+	vectors []*entities.ResponseAnswerVector,
+) error {
 
-	// Validate the Response domain entity
-	// Ensures required fields and domain rules are satisfied
+	// ===== Domain validation =====
 	if err := response.IsValid(); err != nil {
 		return err
 	}
 
-	// Ensure the form exists
 	form, err := u.formRepo.GetByID(ctx, response.FormID)
 	if err != nil {
 		return err
 	}
-	if form == nil {
-		return errors.New("form not found")
-	}
 
-	// Ensure the form is published and accepts responses
-	if form.Status != enums.FormStatusPublished {
-		return errors.New("form is not accepting responses")
-	}
-
-	// Ensure the form has at least one field
-	// Submitting a response to an empty form is not allowed
 	fields, err := u.formFieldRepo.List(ctx, repo.FormFieldFilter{
-		FormID: &form.ID,
+		FormID: &response.FormID,
 	})
 	if err != nil {
 		return err
 	}
-	if len(fields) == 0 {
-		return errors.New("form has no fields")
+
+	if err := validateSubmit(form, fields, response, answers); err != nil {
+		return err
 	}
 
-	// Prepare the Response entity before persistence
-	// Generate ID if missing, set status and submission timestamp
+	// ===== Prepare data =====
 	if response.ID == uuid.Nil {
 		response.ID = uuid.New()
 	}
 	response.Status = enums.ResponseSubmitted
 	response.SubmittedAt = time.Now()
 
-	// Persist the response
-	if err := u.responseRepo.Create(ctx, response); err != nil {
-		return err
-	}
-
-	// Persist each answer individually
-	// Each answer is linked to the response and validated
-	for _, answer := range answers {
-
-		answer.ID = uuid.New()
-		answer.ResponseID = response.ID
-		answer.CreatedAt = time.Now()
-
-		if err := answer.IsValid(); err != nil {
-			return err
+	for _, a := range answers {
+		if a.ID == uuid.Nil {
+			a.ID = uuid.New()
 		}
+		a.ResponseID = response.ID
+		a.CreatedAt = time.Now()
 
-		if err := u.answerRepo.Create(ctx, answer); err != nil {
+		if err := a.IsValid(); err != nil {
 			return err
 		}
 	}
 
-	// Persist vectors (optional)
-	// Vectors are validated first, then inserted in bulk for performance
-	if len(vectors) > 0 {
+	for _, v := range vectors {
+		if v.ID == uuid.Nil {
+			v.ID = uuid.New()
+		}
+		v.CreatedAt = time.Now()
 
-		for _, vec := range vectors {
-			vec.ID = uuid.New()
-			vec.CreatedAt = time.Now()
+		if err := v.IsValid(); err != nil {
+			return err
+		}
+	}
 
-			if err := vec.IsValid(); err != nil {
+	// ===== Transaction =====
+	return u.responseRepo.WithTx(ctx, func(tx repo.ResponseRepository) error {
+
+		if err := tx.Create(ctx, response); err != nil {
+			return err
+		}
+
+		for _, a := range answers {
+			if err := u.answerRepo.WithTxRepo(tx).Create(ctx, a); err != nil {
 				return err
 			}
 		}
 
-		if err := u.vectorRepo.CreateBulk(ctx, vectors); err != nil {
-			return err
+		if len(vectors) > 0 {
+			if err := u.vectorRepo.WithTxRepo(tx).CreateBulk(ctx, vectors); err != nil {
+				return err
+			}
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // GetByID retrieves a single response by its ID

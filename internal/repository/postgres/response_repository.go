@@ -12,34 +12,26 @@ import (
 
 // ResponseRepository provides PostgreSQL implementation
 // for managing form responses.
-//
-// Responsibilities:
-// - Store form submissions
-// - Retrieve responses
-// - Handle JSONB respondent data
-//
-// NOTE:
-// This repository must NOT contain business logic.
+// It supports transactions via BaseRepository.
 type ResponseRepository struct {
 	base *BaseRepository
 }
 
 // NewResponseRepository creates a new ResponseRepository instance.
-//
-// base:
-// - Shared BaseRepository
-// - Handles timeout & transaction support
 func NewResponseRepository(base *BaseRepository) *ResponseRepository {
 	return &ResponseRepository{base: base}
 }
 
-// Create inserts a new response record.
-//
-// Behavior:
-// - Generates UUID if missing
-// - submitted_at is set by database (NOW())
-func (r *ResponseRepository) Create(ctx context.Context, response *entities.Response) error {
+// WithTx executes the given function inside a database transaction.
+func (r *ResponseRepository) WithTx(ctx context.Context, fn func(txRepo *ResponseRepository) error) error {
+	return r.base.WithTx(ctx, func(txBase *BaseRepository) error {
+		txRepo := &ResponseRepository{base: txBase}
+		return fn(txRepo)
+	})
+}
 
+// Create inserts a new response record.
+func (r *ResponseRepository) Create(ctx context.Context, response *entities.Response) error {
 	if response.ID == uuid.Nil {
 		response.ID = uuid.New()
 	}
@@ -53,13 +45,7 @@ func (r *ResponseRepository) Create(ctx context.Context, response *entities.Resp
 		) VALUES ($1, $2, $3, NOW())
 	`
 
-	if err := r.base.Exec(
-		ctx,
-		query,
-		response.ID,
-		response.FormID,
-		response.Respondent,
-	); err != nil {
+	if err := r.base.Exec(ctx, query, response.ID, response.FormID, response.Respondent); err != nil {
 		return fmt.Errorf("responseRepository.Create: %w", err)
 	}
 
@@ -68,7 +54,6 @@ func (r *ResponseRepository) Create(ctx context.Context, response *entities.Resp
 
 // GetByID retrieves a response by its ID.
 func (r *ResponseRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Response, error) {
-
 	const query = `
 		SELECT
 			id,
@@ -80,14 +65,8 @@ func (r *ResponseRepository) GetByID(ctx context.Context, id uuid.UUID) (*entiti
 	`
 
 	row := r.base.QueryRow(ctx, query, id)
-
 	var response entities.Response
-	if err := row.Scan(
-		&response.ID,
-		&response.FormID,
-		&response.Respondent,
-		&response.SubmittedAt,
-	); err != nil {
+	if err := row.Scan(&response.ID, &response.FormID, &response.Respondent, &response.SubmittedAt); err != nil {
 		return nil, fmt.Errorf("responseRepository.GetByID: %w", err)
 	}
 
@@ -95,10 +74,7 @@ func (r *ResponseRepository) GetByID(ctx context.Context, id uuid.UUID) (*entiti
 }
 
 // ListByFormID retrieves all responses for a specific form.
-//
-// Results are ordered by submission time (latest first).
 func (r *ResponseRepository) ListByFormID(ctx context.Context, formID uuid.UUID) ([]*entities.Response, error) {
-
 	if formID == uuid.Nil {
 		return nil, errors.New("responseRepository.ListByFormID: missing formID")
 	}
@@ -121,18 +97,11 @@ func (r *ResponseRepository) ListByFormID(ctx context.Context, formID uuid.UUID)
 	defer rows.Close()
 
 	var responses []*entities.Response
-
 	for rows.Next() {
 		var response entities.Response
-		if err := rows.Scan(
-			&response.ID,
-			&response.FormID,
-			&response.Respondent,
-			&response.SubmittedAt,
-		); err != nil {
+		if err := rows.Scan(&response.ID, &response.FormID, &response.Respondent, &response.SubmittedAt); err != nil {
 			return nil, fmt.Errorf("responseRepository.ListByFormID.Scan: %w", err)
 		}
-
 		responses = append(responses, &response)
 	}
 
@@ -141,15 +110,14 @@ func (r *ResponseRepository) ListByFormID(ctx context.Context, formID uuid.UUID)
 
 // Delete removes a response by its ID.
 func (r *ResponseRepository) Delete(ctx context.Context, id uuid.UUID) error {
-
-	const query = `
-		DELETE FROM responses
-		WHERE id = $1
-	`
+	const query = `DELETE FROM responses WHERE id = $1`
 
 	if err := r.base.Exec(ctx, query, id); err != nil {
 		return fmt.Errorf("responseRepository.Delete: %w", err)
 	}
 
 	return nil
+}
+func (r *ResponseRepository) BaseRepo() *BaseRepository {
+	return r.base
 }
