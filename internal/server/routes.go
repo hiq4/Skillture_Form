@@ -1,19 +1,20 @@
 package server
 
-// import (
-// 	"Skillture_Form/internal/server/handlers"
+import (
+	"github.com/gin-gonic/gin"
+)
 
-// 	"github.com/gin-gonic/gin"
-// )
+func SetupRoutes(r *gin.Engine, adminHandler *AdminHandler) {
+	// Public routes
+	r.GET("/health", HealthCheck)
 
-// // setupRoutes configures all route groups and endpoints
-// func setupRoutes(r *gin.Engine) {
-// 	// Admin group routes
-// 	adminGroup := r.Group("/admin")
-// 	{
-// 		adminGroup.GET("/", handlers.AdminListHandler)    // GET /admin
-// 		adminGroup.POST("/", handlers.AdminCreateHandler) // POST /admin
-// 	}
-
-// 	// TODO: Add more route groups (forms, responses, etc.)
-// }
+	// Admin routes group
+	admin := r.Group("/admin")
+	admin.Use(AdminLoggingMiddleware()) // 🌟 هنا نضيف logging للadmin فقط
+	{
+		admin.POST("/create", adminHandler.Create)
+		admin.GET("/list", adminHandler.List)
+		admin.PUT("/update/:id", adminHandler.Update)
+		admin.DELETE("/delete/:id", adminHandler.Delete)
+	}
+}
