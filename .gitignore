@@ -31,3 +31,22 @@ go.work.sum
 .idea/
 .vscode/
 build/
+
+# Node
+web/node_modules/
+
+# Logs
+*.log
+setup.log
+
+# Temp files
+*_temp.go
+hash_result.txt
+db_output.txt
+status_*.txt
+response_*.txt
+
+# Binary
+api
+Skillture/
+skillture-server
