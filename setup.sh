@@ -22,7 +22,7 @@ fi
 APP_DIR="/opt/skillture"
 USER_NAME="skillture"
 DB_NAME="skillture_form"
-DB_USER="skillture"
+DB_USER="cpper"
 
 # 1. Update System & Install Dependencies
 echo -e "${GREEN}[1/7] Updating system and installing dependencies...${NC}"
@@ -101,7 +101,7 @@ else
 fi
 
 # Create user and db if not exist
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD 'placeholder_password';" 2>/dev/null || true
+sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '0770';" 2>/dev/null || true
 sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || true
 sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
 
